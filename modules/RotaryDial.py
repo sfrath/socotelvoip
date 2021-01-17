@@ -11,10 +11,10 @@ import time
 class RotaryDial:
     
     # We'll be reading BCM GPIO 4 (pin 7 on board)
-    pin_rotary = 4
+    pin_rotary = 17
 
     # We'll be reading on/off hook events from BCM GPIO 3
-    pin_onhook = 3
+    pin_onhook = 18
 
     # After 900ms, we assume the rotation is done and we get
     # the final digit. 
@@ -30,7 +30,7 @@ class RotaryDial:
 
     # Timer to ensure we're on hook
     onhook_timer = None
-    should_verify_hook = True
+    should_verify_hook = False
 
     def __init__(self):
         # Set GPIO mode to Broadcom SOC numbering
@@ -50,7 +50,7 @@ class RotaryDial:
     # Handle counting of rotary movements and respond with digit after timeout
     def NumberCounter(self, channel):
         input = GPIO.input(self.pin_rotary)
-        #print "[INPUT] %s (%s)" % (input, channel)
+        print( "[INPUT] %s (%s)" % (input, channel))
         if input and not self.last_input:
             self.current_digit += 1
 
@@ -85,6 +85,7 @@ class RotaryDial:
     def FoundNumber(self):
         if self.current_digit == 10:
             self.current_digit = 0
+        print("Found number: %d"%self.current_digit)
         self.NumberCallback(self.current_digit)
         self.current_digit = 0
 
@@ -100,3 +101,17 @@ class RotaryDial:
             self.OffHookCallback()
         else:
             self.OnHookCallback()
+
+
+
+def debugcallback(donnee):
+    print(donnee)
+    
+def main():
+    dial = RotaryDial()
+    #dial.RegisterCallback(NumberCallback = debugcallback, OffHookCallback = debugcallback, OnHookCallback = debugcallback, OnVerifyHook = debugcallback)
+
+    
+
+if __name__ == "__main__":
+    main()

@@ -34,7 +34,7 @@ class Ringtone:
         self.shouldplayhandset = 1
         self.handsetfile = file
         if self.timerHandset is not None:
-            print "[RINGTONE] Handset already playing?"
+            print("[RINGTONE] Handset already playing?")
             return
 
         self.timerHandset = Timer(0, self.playhandset)
@@ -47,7 +47,7 @@ class Ringtone:
             self.timerHandset = None
 
     def playhandset(self):
-        print "Starting dialtone"
+        print("Starting dialtone")
         wv = wave.open(self.handsetfile)
         device = alsaaudio.PCM(card="plug:external")
         #device.setchannels(wv.getnchannels())
