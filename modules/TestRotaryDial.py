@@ -7,7 +7,9 @@ from modules.RawInput import RawInput
       
 
 def pollDial():
-    pin_digit = 17
+    pin_digit = 2
+    pin_dial = 3
+    pin_hook = 4
     # Set GPIO mode to Broadcom SOC numbering
     GPIO.setmode(GPIO.BCM)
     # set the input to pullup!
