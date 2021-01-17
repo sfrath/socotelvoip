@@ -2,7 +2,7 @@
 
 import RPi.GPIO as GPIO
 import time
-from modules.RawInput import RawInput
+from RawInput import RawInput
 
       
 
@@ -12,33 +12,38 @@ def pollDial():
     pin_hook = 4
     # Set GPIO mode to Broadcom SOC numbering
     GPIO.setmode(GPIO.BCM)
-    # set the input to pullup!
-    GPIO.setup(pin_digit, GPIO.IN, GPIO.PUD_UP)
+    # set the input to pullup (no need to 2 and 3)
+    GPIO.setup(pin_digit, GPIO.IN)
+    GPIO.setup(pin_dial, GPIO.IN)
+    GPIO.setup(pin_hook, GPIO.IN, GPIO.PUD_UP)
     #timeout to declare which digit it is
     timeout = 0.5
 
     
     lastedge = time.time()
     #inialize the debouncer wih 20ms deboucne time
-    rawinput = RawInput(init = 1, low_high=0.02, high_low=0.02)
-    newstate = rawinput.debounce(GPIO.input(pin_digit))
+    DebDigit = RawInput(init = 1, low_high=0.02, high_low=0.02)
+    DebDial = RawInput(init = 1, low_high=0.02, high_low=0.02)
+    digit_state = DebDigit.debounce(GPIO.input(pin_digit))
     #trick to avoid a digit detection at start
     time.sleep(0.03)
-    newstate = rawinput.debounce(GPIO.input(pin_digit))
-    state = newstate    
+    digit_state = DebDigit.debounce(GPIO.input(pin_digit))
+    old_digit_state = digit_state    
     countzeroes = 0 
     while(1):
-        #newstate = GPIO.input(pin_digit) #does not work wihout debounce
-        newstate = rawinput.debounce(GPIO.input(pin_digit))
+        #digit_state = GPIO.input(pin_digit) #does not work wihout debounce
+        digit_state = DebDigit.debounce(GPIO.input(pin_digit))
+        dial_state = DebDial.debounce(GPIO.input(pin_dial))
 
         #we detect edges and count zeroes
-        if newstate != state:
-            state = newstate
+        if digit_state != old_digit_state and not dial_state:
+            old_digit_state = digit_state
             lastedge = time.time()
-            if not newstate:
+            if not digit_state:
                 countzeroes += 1
+            #print("dial: %d"%dial_state)
                 
-            #print("Edge detected, state is now %d"%newstate)
+            #print("Edge detected, state is now %d"%digit_state)
         #when no mo edges for timeout, it means it is the end and we have our number
         if (time.time() - lastedge > timeout) and countzeroes:
 
