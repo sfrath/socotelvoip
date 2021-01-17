@@ -2,6 +2,8 @@ from threading import Timer
 import time
 import alsaaudio
 import wave
+import RPi.GPIO as GPIO
+import time
 
 class Ringtone:
     shouldring = 0
@@ -97,3 +99,53 @@ class Ringtone:
             time.sleep(2)
             if time.time() - 60 > self.ringstart:
                 self.stop()
+
+def ring(duration = 2):
+    #ouput to have 12v
+    pin_pwr = 14
+    #output of the bell
+    pin_pos = 15
+    pin_neg = 18
+    #alternating current period
+    alt_period = 0.08
+    RELAY_ON = 0
+
+    # Set GPIO mode to Broadcom SOC numbering
+    GPIO.setmode(GPIO.BCM)
+    # set the output
+    GPIO.setup(pin_pwr, GPIO.OUT)
+    GPIO.setup(pin_pos, GPIO.OUT)
+    GPIO.setup(pin_neg, GPIO.OUT)
+
+    now = time.time()
+    begin = now
+    alt_current = RELAY_ON
+    time_alt = now
+    while now - begin <= duration:
+        #activate output
+        GPIO.output(pin_pwr, RELAY_ON)        
+        GPIO.output(pin_pos, alt_current)
+        GPIO.output(pin_neg, alt_current)
+        
+        
+        #alternating current logic
+        if now - time_alt >= alt_period:
+            time_alt = now
+            alt_current = not alt_current
+        
+        time.sleep(0.01)
+        now = time.time()
+
+    GPIO.cleanup()
+            
+
+        
+
+def main():
+    time.sleep(1)
+    ring(2)
+
+if __name__ == "__main__":
+    main()
+
+    
