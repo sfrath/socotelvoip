@@ -2,7 +2,7 @@
 
 import RPi.GPIO as GPIO
 import time
-from RawInput import RawInput
+from .modules import RawInput
 
       
 
