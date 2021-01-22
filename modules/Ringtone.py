@@ -8,7 +8,6 @@ import time
 class Ringtone:
     shouldring = 0
     ringtone = None
-    ringfile = None
 
     ringstart = 0
 
@@ -18,8 +17,31 @@ class Ringtone:
 
     config = None
 
+    #ouput to have 12v on the bell actuator
+    pin_pwr = 14
+    #output of the bell
+    pin_pos = 15
+    pin_neg = 18
+    #alternating current period
+    flipping_period = 0.05
+    #value to activate relay (Low side control)
+    RELAY_ON = GPIO.LOW
+    #how long ring is on while ringing
+    time_ring_on = 2
+    #pause time between two rings
+    time_ring_off = 4
+
     def __init__(self, config):
         self.config = config
+
+        # Set GPIO mode to Broadcom SOC numbering
+        GPIO.setmode(GPIO.BCM)
+        # set the output
+        GPIO.setup(pin_pwr, GPIO.OUT)
+        GPIO.setup(pin_pos, GPIO.OUT)
+        GPIO.setup(pin_neg, GPIO.OUT)
+
+            
 
     def start(self):
         self.shouldring = 1
@@ -79,73 +101,41 @@ class Ringtone:
         wv.close()
 
     def doring(self):
-        if self.ringfile is not None:
-            self.ringfile.rewind()
-        else:
-            self.ringfile = wave.open(self.config["soundfiles"]["ringtone"], 'rb')
-            self.device = alsaaudio.PCM(card="pulse")
-            self.device.setchannels(self.ringfile.getnchannels())
-            self.device.setrate(self.ringfile.getframerate())
-            self.device.setperiodsize(320)
+        flip_output = RELAY_ON
+        time_to_flip = time.time()
+        time_to_pause = time.time()
 
+        while self.shouldring :
+            now = time.time()
+            #activate 12V output
+            GPIO.output(pin_pwr, RELAY_ON) 
 
-        while self.shouldring:
-            data = self.ringfile.readframes(320)
-            while data:
-                self.device.write(data)
-                data = self.ringfile.readframes(320)
+            if now - time_to_pause >= time_ring_on + time_ring_off:
+                time_to_pause = now
+            elif now - time_to_pause >= time_ring_on:
+                #flip bell output
+                GPIO.output([pin_pos, pin_neg], flip_output)
 
-            self.ringfile.rewind()
-            time.sleep(2)
-            if time.time() - 60 > self.ringstart:
+                #alternating current logic
+                if now - time_to_flip >= flipping_period:
+                    time_to_flip = now
+                    flip_output = not flip_output
+            
+            if now - 60 > self.ringstart:
                 self.stop()
 
-def ring(duration = 2):
-    #ouput to have 12v
-    pin_pwr = 14
-    #output of the bell
-    pin_pos = 15
-    pin_neg = 18
-    #alternating current period
-    alt_period = 0.08
-    RELAY_ON = 0
-
-    # Set GPIO mode to Broadcom SOC numbering
-    GPIO.setmode(GPIO.BCM)
-    # set the output
-    GPIO.setup(pin_pwr, GPIO.OUT)
-    GPIO.setup(pin_pos, GPIO.OUT)
-    GPIO.setup(pin_neg, GPIO.OUT)
-
-    now = time.time()
-    begin = now
-    alt_current = RELAY_ON
-    time_alt = now
-    while now - begin <= duration:
-        #activate output
-        GPIO.output(pin_pwr, RELAY_ON)        
-        GPIO.output(pin_pos, alt_current)
-        GPIO.output(pin_neg, alt_current)
+            time.sleep(0.01)
         
-        
-        #alternating current logic
-        if now - time_alt >= alt_period:
-            time_alt = now
-            alt_current = not alt_current
-        
-        time.sleep(0.01)
-        now = time.time()
-
-    GPIO.cleanup()
+        #deactivate 12V output
+        GPIO.output(pin_pwr, not RELAY_ON) 
             
 
         
-
-def main():
-    time.sleep(1)
-    ring(2)
-
 if __name__ == "__main__":
-    main()
+    config = yaml.load(file("../configuration.yml",'r'))
+    ringtone = Ringtone(config)
+    ringtone.start()
+    time.sleep(10)
+    ringtone.stop()
 
     
