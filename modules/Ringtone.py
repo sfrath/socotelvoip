@@ -4,6 +4,9 @@ import alsaaudio
 import wave
 import RPi.GPIO as GPIO
 import time
+import sys
+import os
+import yaml
 
 class Ringtone:
     shouldring = 0
@@ -24,8 +27,6 @@ class Ringtone:
     pin_neg = 18
     #alternating current period
     flipping_period = 0.05
-    #value to activate relay (Low side control)
-    RELAY_ON = GPIO.LOW
     #how long ring is on while ringing
     time_ring_on = 2
     #pause time between two rings
@@ -33,21 +34,24 @@ class Ringtone:
 
     def __init__(self, config):
         self.config = config
-
+        
+        
         # Set GPIO mode to Broadcom SOC numbering
         GPIO.setmode(GPIO.BCM)
         # set the output
-        GPIO.setup(pin_pwr, GPIO.OUT)
-        GPIO.setup(pin_pos, GPIO.OUT)
-        GPIO.setup(pin_neg, GPIO.OUT)
+        GPIO.setup(self.pin_pwr, GPIO.OUT)
+        GPIO.setup(self.pin_pos, GPIO.OUT)
+        GPIO.setup(self.pin_neg, GPIO.OUT)
 
             
 
     def start(self):
         self.shouldring = 1
         self.ringtone = Timer(0, self.doring)
+        print("starting thread")
         self.ringtone.start()
         self.ringstart = time.time()
+        
 
     def stop(self):
         self.shouldring = 0
@@ -101,9 +105,13 @@ class Ringtone:
         wv.close()
 
     def doring(self):
+        #value to activate relay (Low side control)
+        RELAY_ON = GPIO.LOW
+        
         flip_output = RELAY_ON
         time_to_flip = time.time()
         time_to_pause = time.time()
+
 
         while self.shouldring :
             now = time.time()
@@ -112,9 +120,11 @@ class Ringtone:
 
             if now - time_to_pause >= self.time_ring_on + self.time_ring_off:
                 time_to_pause = now
-            elif now - time_to_pause >= self.time_ring_on:
+                #print("pausing")
+            elif now - time_to_pause < self.time_ring_on:
                 #flip bell output
-                GPIO.output([self.pin_pos, self.pin_neg], flip_output)
+                GPIO.output(self.pin_pos, flip_output)
+                GPIO.output(self.pin_neg, flip_output)
 
                 #alternating current logic
                 if now - time_to_flip >= self.flipping_period:
@@ -132,10 +142,16 @@ class Ringtone:
 
         
 if __name__ == "__main__":
-    config = yaml.load(file("../configuration.yml",'r'))
-    ringtone = Ringtone(config)
-    ringtone.start()
-    time.sleep(10)
-    ringtone.stop()
+    with open("../configuration.yml") as file:
+        config = yaml.load(file)
+        #GPIO.cleanup()
+        ringtone = Ringtone(config)
+        print("start ringing")
+        ringtone.start()
+        print("sleep")
+        time.sleep(20)
+        print("stop thread")
+        ringtone.stop()
+        GPIO.cleanup()
 
     
