@@ -125,10 +125,10 @@ class TelephoneDaemon:
             self.Ringtone.playfile(self.config["soundfiles"]["shutdown"])
             os.system("halt")
 
-        if len(self.dial_number) == 8:
+        if len(self.dial_number) == 3:
             if self.offHook:
                 print("[PHONE] Dialing number: %s" % self.dial_number)
-                self.SipClient.SipCall(self.dial_number)
+                #self.SipClient.SipCall(self.dial_number)
                 self.dial_number = ""
 
     def OnSignal(self, signal, frame):

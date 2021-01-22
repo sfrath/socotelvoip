@@ -1,4 +1,4 @@
-# RotaryDial parser using polling mehod
+# RotaryDial parser using polling method to test the logic
 
 import RPi.GPIO as GPIO
 import time

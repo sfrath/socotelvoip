@@ -10,18 +10,22 @@ import time
 
 class RotaryDial:
     
-    # We'll be reading BCM GPIO 4 (pin 7 on board)
-    pin_rotary = 17
+    # we read GPIO 2 and 3 (both pullup) to acquire digits
+    pin_digit = 2
+    #pin_dial will go to low state when the rotary dial is touched
+    pin_dial = 3
 
-    # We'll be reading on/off hook events from BCM GPIO 3
-    pin_onhook = 18
+    #the hook pin will be 4, need to be configured as pullup
+    pin_onhook = 4
 
     # After 900ms, we assume the rotation is done and we get
     # the final digit. 
     digit_timeout = 0.9
 
-    # We keep a counter to count each pulse.
-    current_digit = 0
+    #current coutn of rising edges
+    count_rising_edges = 0 
+
+    digit = 0
 
     # Simple timer for handling the number callback
     number_timeout = None
@@ -30,42 +34,64 @@ class RotaryDial:
 
     # Timer to ensure we're on hook
     onhook_timer = None
-    should_verify_hook = False
+    should_verify_hook = True
 
     def __init__(self):
         # Set GPIO mode to Broadcom SOC numbering
         GPIO.setmode(GPIO.BCM)
 
-        # Listen for rotary movements
-        GPIO.setup(self.pin_rotary, GPIO.IN)
-        GPIO.add_event_detect(self.pin_rotary, GPIO.BOTH, callback = self.NumberCounter)
+        # set the input to pullup (no need for 2 and 3)
+        GPIO.setup(self.pin_digit, GPIO.IN)
+        GPIO.setup(self.pin_dial, GPIO.IN)
+        GPIO.setup(self.pin_onhook, GPIO.IN, GPIO.PUD_UP)
+
+        # we will listen for the pin_digit rising edge to count
+        GPIO.add_event_detect(self.pin_digit, GPIO.RISING, callback = self.DigitEdgeCounter, bouncetime=20)
+
+        # we listen for the pin_dial edges, the falling edges will reset variables, the rising edge will end the digit acquisition
+        GPIO.add_event_detect(self.pin_digit, GPIO.BOTH, callback = self.BeginEndDigit, bouncetime=50)
         
         # Listen for on/off hooks
-        GPIO.setup(self.pin_onhook, GPIO.IN)
         GPIO.add_event_detect(self.pin_onhook, GPIO.BOTH, callback = self.HookEvent, bouncetime=100)
         
         self.onhook_timer = Timer(2, self.verifyHook)
         self.onhook_timer.start()
 
-    # Handle counting of rotary movements and respond with digit after timeout
-    def NumberCounter(self, channel):
-        input = GPIO.input(self.pin_rotary)
-        print( "[INPUT] %s (%s)" % (input, channel))
-        if input and not self.last_input:
-            self.current_digit += 1
+    # mark the beginning and end of digit acquisition
+    def BeginEndDigit(self, channel):
+        #dial input acquisition
+        dial_input = GPIO.input(self.pin_dial)
 
-            if self.number_timeout is not None:
-                self.number_timeout.cancel()
+        #input high marks end of digit acquisition
+        if dial_input:
+            if self.count_rising_edges >= 10: #10 edges is 0
+                self.digit = 0
+            elif self.count_rising_edges > 0:
+                self.digit = self.count_rising_edges
+            else: #invalid
+                self.digit = -1
+            
+            print("digit: %d"%(self.digit))
+            self.FoundNumber()
+            self.count_rising_edges = 0
+        #input low marks the beginning of digit acquisition
+        else:
+            self.count_rising_edges = 0
+            self.digit = -1
 
-            self.number_timeout = Timer(self.digit_timeout, self.FoundNumber)
-            self.number_timeout.start()
-        self.last_input = input
-   #     time.sleep(0.002)
+    # parse the digit by counting the rising edges of pin_digit
+    def DigitEdgeCounter(self, channel):
+        #dial input acquisition
+        dial_input = GPIO.input(self.pin_dial)
+
+        #we make sure the dial input is low
+        if not dial_input: 
+            count_rising_edges += 1
 
     # Wrapper around the off/on hook event 
     def HookEvent(self, channel):
         input = GPIO.input(self.pin_onhook)
-        if input:
+        if not input:
             self.hook_state = 1
             self.OffHookCallback()
         else:
@@ -83,11 +109,8 @@ class RotaryDial:
 
     # When the rotary movement has timed out, we callback with the final digit
     def FoundNumber(self):
-        if self.current_digit == 10:
-            self.current_digit = 0
-        print("Found number: %d"%self.current_digit)
-        self.NumberCallback(self.current_digit)
-        self.current_digit = 0
+        print("Found number: %d"%self.digit)
+        self.NumberCallback(self.digit)
 
     # Handles the callbacks we're supplying
     def RegisterCallback(self, NumberCallback, OffHookCallback, OnHookCallback, OnVerifyHook):
@@ -97,7 +120,7 @@ class RotaryDial:
         self.OnVerifyHook = OnVerifyHook
 
         input = GPIO.input(self.pin_onhook)
-        if input:
+        if not input:
             self.OffHookCallback()
         else:
             self.OnHookCallback()

@@ -108,16 +108,16 @@ class Ringtone:
         while self.shouldring :
             now = time.time()
             #activate 12V output
-            GPIO.output(pin_pwr, RELAY_ON) 
+            GPIO.output(self.pin_pwr, RELAY_ON) 
 
-            if now - time_to_pause >= time_ring_on + time_ring_off:
+            if now - time_to_pause >= self.time_ring_on + self.time_ring_off:
                 time_to_pause = now
-            elif now - time_to_pause >= time_ring_on:
+            elif now - time_to_pause >= self.time_ring_on:
                 #flip bell output
-                GPIO.output([pin_pos, pin_neg], flip_output)
+                GPIO.output([self.pin_pos, self.pin_neg], flip_output)
 
                 #alternating current logic
-                if now - time_to_flip >= flipping_period:
+                if now - time_to_flip >= self.flipping_period:
                     time_to_flip = now
                     flip_output = not flip_output
             
@@ -127,7 +127,7 @@ class Ringtone:
             time.sleep(0.01)
         
         #deactivate 12V output
-        GPIO.output(pin_pwr, not RELAY_ON) 
+        GPIO.output(self.pin_pwr, not RELAY_ON) 
             
 
         
