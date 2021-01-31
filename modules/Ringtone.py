@@ -55,6 +55,7 @@ class Ringtone:
 
     def stop(self):
         self.shouldring = 0
+        time.sleep(0.05)
         if self.ringtone is not None:
             self.ringtone.cancel()
 
@@ -106,21 +107,29 @@ class Ringtone:
 
     def doring(self):
         #value to activate relay (Low side control)
-        RELAY_ON = GPIO.LOW
+        RELAY_ON = 0
+
+        #switch off bell
+        GPIO.output(self.pin_pos, RELAY_ON)
+        GPIO.output(self.pin_neg, not RELAY_ON)
+        time.sleep(0.2)
+        #activate 12V output
+        GPIO.output(self.pin_pwr, RELAY_ON)
+        time.sleep(0.2)
         
         flip_output = RELAY_ON
         time_to_flip = time.time()
         time_to_pause = time.time()
 
-
+        print("start ringing")
         while self.shouldring :
             now = time.time()
-            #activate 12V output
-            GPIO.output(self.pin_pwr, RELAY_ON) 
+
+            
 
             if now - time_to_pause >= self.time_ring_on + self.time_ring_off:
                 time_to_pause = now
-                #print("pausing")
+                print("pausing")
             elif now - time_to_pause < self.time_ring_on:
                 #flip bell output
                 GPIO.output(self.pin_pos, flip_output)
@@ -149,7 +158,7 @@ if __name__ == "__main__":
         print("start ringing")
         ringtone.start()
         print("sleep")
-        time.sleep(20)
+        time.sleep(10)
         print("stop thread")
         ringtone.stop()
         GPIO.cleanup()
